@@ -2,5 +2,5 @@
 
 void main()
 {
-    test();
+    test("<html><body><p>Hello, world!</p></body></html>");
 }
