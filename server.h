@@ -3,5 +3,9 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <strings.h>
+#include <unistd.h>
 
-void test(void);
+int test(void);

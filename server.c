@@ -13,21 +13,67 @@ Goals:
 
 #include <server.h>
 
-void test()
+#define BACKLOG 10
+
+int test()
 {
-    int sock;
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    register int s, c;
+    int b;
     struct sockaddr_in sa;
-    sa.sin_port = 80;
+    FILE *client;
+
+    if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        perror("socket");
+        return 1;
+    }
+
+    bzero(&sa, sizeof sa);
+
     sa.sin_family = AF_INET;
-    struct in_addr address;
-    address.s_addr = htons((uint16_t)INADDR_LOOPBACK);
-    sa.sin_addr = address;
-    struct sockaddr *socka = (struct sockaddr *) &sa;
-    bind(sock, socka, sizeof(struct sockaddr));
-    listen(sock, 5);
-    int incoming;
-    incoming = accept(sock, 0, 0);
-    char outgoing[] = "HTTP/1.1 200 OK\r\nContent-length: 5\r\nContent-type: text/html\r\nConnection: closed\r\n\r\nHello";
-    send(incoming, outgoing, sizeof(outgoing), 0);
+    sa.sin_port = htons(8080);
+    sa.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (bind(s, (struct sockaddr *)&sa, sizeof sa) < 0)
+    {
+        perror("bind");
+        return 2;
+    }
+
+    /* switch (fork()) // Forks the process, making it a daemon
+    {
+        case -1:
+            perror("fork");
+            return 3;
+            break;
+        default:
+            close(s);
+            return 0;
+            break;
+        case 0:
+            break;
+    } */
+
+    listen(s, BACKLOG);
+
+    for (;;)
+    {
+        b = sizeof sa;
+        if ((c = accept(s, (struct sockaddr *)&sa, &b)) < 0)
+        {
+            perror("accept");
+            return 4;
+        }
+
+        if ((client = fdopen(c, "w")) == NULL)
+        {
+            perror("fdopen");
+            return 5;
+        }
+
+        char base[] = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\nContent-length: %d\r\n\r\n%s\r\n";
+        char output[] = "<html><body><h1>Woohoo!</h1></body></html>";
+        fprintf(client, base, sizeof(output)/sizeof(output[0]), output);
+        fclose(client);
+    }
 }
