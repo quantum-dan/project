@@ -8,5 +8,7 @@
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 int test(char *output);
+int server_html(char *filename);

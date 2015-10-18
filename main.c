@@ -2,5 +2,5 @@
 
 void main()
 {
-    test("<html><body><p>Hello, world!</p></body></html>");
+    server_html("/home/daniel/c/server/html/index.html");
 }
