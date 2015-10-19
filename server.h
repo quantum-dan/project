@@ -10,5 +10,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-int test(char *output);
+typedef struct gsreturn {int s; struct sockaddr *sa;} gsreturn;
+gsreturn gen_socket(void);
+int http_index_listen(gsreturn gs, char *reply);
 int server_html(char *filename);
