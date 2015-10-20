@@ -46,60 +46,27 @@ int http_index_listen(gsreturn gs, char *reply)
     {
         b = sizeof sa;
         if ((c = accept(s, sa, &b)) < 0 ) return c;
-        if ((client = fdopen(c, "w")) == NULL) return -2;
-        char base[] = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\nContent-length: %d\r\n\r\n%s\r\n";
-        fprintf(client, base, strlen(reply), reply);
-        fclose(client);
+        if (http_html_response(c, reply) != 0) return -1;
     }
+    return 0;
 }
 
-/* int test(char *output)
+int http_response(int caddr, char *base, char *body)
 {
-    register int s, c; // s will be server socket, c will be client socket
-    int b; // b will be sizeof sockaddr_in
-    struct sockaddr_in sa; // server socket address
-    FILE *client; // client to write to
+    // Generic HTTP response function
+    FILE *client;
+    if ((client = fdopen(caddr, "w")) == NULL) return -1;
+    fprintf(client, base, strlen(body), body);
+    fclose(client);
+    return 0;
+}
 
-    if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) // create socket and check for errors
-    {
-        perror("socket");
-        return 1;
-    }
-
-    bzero(&sa, sizeof sa); // make sa empty
-
-    sa.sin_family = AF_INET; // IPv4
-    sa.sin_port = htons(PORT); // PORT macro
-    sa.sin_addr.s_addr = htonl(INADDR_ANY); // any IP address (0.0.0.0)
-
-    if (bind(s, (struct sockaddr *)&sa, sizeof sa) < 0) // bind s to sa and check for errors
-    {
-        perror("bind");
-        return 2;
-    }
-
-    listen(s, BACKLOG); // listen on s
-
-    for (;;)
-    {
-        b = sizeof sa;
-        if ((c = accept(s, (struct sockaddr *)&sa, &b)) < 0) // accept connection and check for errors
-        {
-            perror("accept");
-            return 4;
-        }
-
-        if ((client = fdopen(c, "w")) == NULL) // open connection as file and check for errors
-        {
-            perror("fdopen");
-            return 5;
-        }
-
-        char base[] = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\nContent-length: %d\r\n\r\n%s\r\n"; // base HTTP string
-        fprintf(client, base, strlen(output), output); // write to client
-        fclose(client);
-    }
-} */
+int http_html_response(int caddr, char *body)
+{
+    // Basic HTML response
+    char *base = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\nContent-length: %d\r\n\r\n%s\r\n";
+    return http_response(caddr, base, body);
+}
 
 int server_html(char *filename)
 {
@@ -121,4 +88,10 @@ int server_html(char *filename)
     struct gsreturn gs;
     gs = gen_socket();
     http_index_listen(gs, output);
+    return 0;
+}
+
+int parse_route(int target, char **routes)
+{
+    // Parses the content of target HTTP request, then matches in routes and returns index
 }

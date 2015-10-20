@@ -14,3 +14,5 @@ typedef struct gsreturn {int s; struct sockaddr *sa;} gsreturn;
 gsreturn gen_socket(void);
 int http_index_listen(gsreturn gs, char *reply);
 int server_html(char *filename);
+int http_response(int caddr, char *base, char *body);
+int http_html_response(int caddr, char *body);
