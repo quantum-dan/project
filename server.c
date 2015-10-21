@@ -116,7 +116,7 @@ int http_listen(gsreturn gs, char **routes, int routes_len, char **replies)
         b = sizeof sa;
         if ((c = accept(s, sa, &b)) < 0) return c;
         route_val = parse_route(c, routes, routes_len);
-        if ((errval = http_html_response(c, replies[route_val])) != 0) return errval;
+        if ((errval = http_html_response_f(c, replies[route_val])) != 0) return errval;
     }
     return 0;
 }
@@ -154,4 +154,24 @@ int parse_route(int target, char **routes, int routes_len)
         }
     }
     return 0;
+}
+
+int http_html_response_f(int caddr, char *filename)
+{
+    // http_html_response from a file
+    FILE *file;
+    int counter;
+    char *body;
+    char c;
+    struct stat st;
+    stat(filename, &st);
+    body = malloc(st.st_size);
+    counter = 0;
+    file = fopen(filename, "r");
+    while ((c = fgetc(file)) != EOF)
+    {
+        body[counter] = c;
+        ++counter;
+    }
+    return http_html_response(caddr, body);
 }

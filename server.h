@@ -19,3 +19,4 @@ int http_html_response(int caddr, char *body);
 int parse_route(int target, char **routes, int routes_len);
 int http_listen(gsreturn gs, char **routes, int routes_len, char **replies);
 int server_html(char **routes, int routes_len, char **replies);
+int http_html_response_f(int caddr, char *filename);
