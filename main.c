@@ -2,5 +2,9 @@
 
 void main()
 {
-    server_html("/home/daniel/c/server/html/index.html");
+    char *routes[] = {"/404", "/", "/hello", "/hi"};
+    int routes_len = 4;
+    char *replies[] = {"not found", "hello1", "hello2", "iwin"};
+    printf("Server is up and running...\n");
+    printf("%d\n", server_html(routes, routes_len, replies));
 }

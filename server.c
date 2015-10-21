@@ -65,10 +65,11 @@ int http_html_response(int caddr, char *body)
 {
     // Basic HTML response
     char *base = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\nContent-length: %d\r\n\r\n%s\r\n";
-    return http_response(caddr, base, body);
+    int result = http_response(caddr, base, body);
+    return result;
 }
 
-int server_html(char *filename)
+int server_html_index(char *filename)
 {
     char buff; // Character for reading file
     FILE *f;
@@ -87,11 +88,70 @@ int server_html(char *filename)
     fclose(f);
     struct gsreturn gs;
     gs = gen_socket();
-    http_index_listen(gs, output);
+    int result = http_index_listen(gs, output);
+    free(output);
+    return result;
+}
+
+int server_html(char **routes, int routes_len, char **replies)
+{
+    struct gsreturn gs;
+    gs = gen_socket();
+    return http_listen(gs, routes, routes_len, replies);
+}
+
+int http_listen(gsreturn gs, char **routes, int routes_len, char **replies)
+{
+    // Test for routing server
+    register int s, c;
+    struct sockaddr *sa;
+    s = gs.s;
+    sa = gs.sa;
+    int b;
+    FILE *client;
+    int route_val;
+    int errval;
+    for (;;)
+    {
+        b = sizeof sa;
+        if ((c = accept(s, sa, &b)) < 0) return c;
+        route_val = parse_route(c, routes, routes_len);
+        if ((errval = http_html_response(c, replies[route_val])) != 0) return errval;
+    }
     return 0;
 }
 
-int parse_route(int target, char **routes)
+int parse_route(int target, char **routes, int routes_len)
 {
     // Parses the content of target HTTP request, then matches in routes and returns index
+    char *buff = malloc(5000);
+    read(target, buff, 5000);
+    int found = 0;
+    char *split;
+    printf("%s\n", buff);
+    do
+    {
+        split = strtok(buff, "\r\n");
+        if (strlen(split) > 4)
+        {
+            if (split[0] == 'G' && split[1] == 'E' && split[2] == 'T' && split[3] == ' ')
+            {
+                found = 1;
+                break;
+            }
+        }
+    } while (!found);
+    char *path = malloc(10);
+    strtok(split, " ");
+    path = strtok(NULL, " ");
+    int index;
+    for (index = 0; index < routes_len; ++index)
+    {
+        if (strncmp(routes[index], path, sizeof routes[index]) == 0)
+        {
+            return index;
+            break;
+        }
+    }
+    return 0;
 }
