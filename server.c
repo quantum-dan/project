@@ -93,40 +93,49 @@ int server_html_index(char *filename)
     return result;
 }
 
-int server_html(char **routes, int routes_len, char **replies)
+int server_html(binding routes[], int routes_len)
 {
     struct gsreturn gs;
     gs = gen_socket();
-    return http_listen(gs, routes, routes_len, replies);
+    return http_router(gs, routes, routes_len);
 }
 
-int http_listen(gsreturn gs, char **routes, int routes_len, char **replies)
+int http_router(gsreturn gs, binding routes[], int routes_len)
 {
-    // Test for routing server
     register int s, c;
     struct sockaddr *sa;
     s = gs.s;
     sa = gs.sa;
     int b;
-    FILE *client;
-    int route_val;
+    int r;
     int errval;
     for (;;)
     {
         b = sizeof sa;
         if ((c = accept(s, sa, &b)) < 0) return c;
-        route_val = parse_route(c, routes, routes_len);
-        if ((errval = http_html_response_f(c, replies[route_val])) != 0) return errval;
+        if ((r = parse_route(c, routes, routes_len)) != 0) http500(c);
     }
     return 0;
 }
 
-int parse_route(int target, char **routes, int routes_len)
+int http500(int target)
+{
+    http_html_response(target, "500 internal server error");
+    printf("ERROR processing request");
+}
+
+int http404(int target)
+{
+    return http_html_response(target, "404 URL not found");
+}
+
+int parse_route(int target, binding routes[], int routes_len)
 {
     // Parses the content of target HTTP request, then matches in routes and returns index
     char *buff = malloc(5000);
     read(target, buff, 5000);
     int found = 0;
+    int type = 0;
     char *split;
     printf("%s\n", buff);
     do
@@ -140,20 +149,31 @@ int parse_route(int target, char **routes, int routes_len)
                 break;
             }
         }
-    } while (!found);
-    char *path = malloc(10);
+        if (strlen(split) > 5)
+        {
+            if (split[0] == 'P' && split[1] == 'O' && split[2] == 'S' && split[3] == 'T' && split[4] == ' ')
+            {
+                found = 1;
+                type = 1;
+                break;
+            }
+        }
+    } while (!found && split != NULL);
+    char *path = malloc(100);
     strtok(split, " ");
     path = strtok(NULL, " ");
     int index;
+    binding route;
     for (index = 0; index < routes_len; ++index)
     {
-        if (strncmp(routes[index], path, sizeof routes[index]) == 0)
+        if ((route = routes[index]).indicator == type && strncmp(route.path, path, sizeof route.path) == 0)
         {
-            return index;
+            if (route.indicator) return route.post(target, "");
+            else return route.get(target);
             break;
         }
     }
-    return 0;
+    return http404(target);
 }
 
 int http_html_response_f(int caddr, char *filename)
@@ -174,4 +194,22 @@ int http_html_response_f(int caddr, char *filename)
         ++counter;
     }
     return http_html_response(caddr, body);
+}
+
+binding get_binding(char *path, int (*target) (int))
+{
+    binding result;
+    result.path = path;
+    result.get = target;
+    result.indicator = 0;
+    return result;
+}
+
+binding post_binding(char *path, int (*target) (int, char*))
+{
+    binding result;
+    result.path = path;
+    result.post = target;
+    result.indicator = 1;
+    return result;
 }
