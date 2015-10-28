@@ -4,7 +4,7 @@ int home(int target);
 int pg1(int target);
 int post_home(int target, char *input);
 
-void main()
+int main()
 {
     binding routes[3];
     routes[0] = get_binding("/", home);
