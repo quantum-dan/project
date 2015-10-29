@@ -108,7 +108,6 @@ int http_router(gsreturn gs, binding routes[], int routes_len)
     sa = gs.sa;
     int b;
     int r;
-    int errval;
     for (;;)
     {
         b = sizeof sa;
@@ -121,7 +120,7 @@ int http_router(gsreturn gs, binding routes[], int routes_len)
 int http500(int target)
 {
     http_html_response(target, "500 internal server error");
-    printf("ERROR processing request");
+    printf("ERROR processing request\n");
 }
 
 int http404(int target)
@@ -132,12 +131,15 @@ int http404(int target)
 int parse_route(int target, binding routes[], int routes_len)
 {
     // Parses the content of target HTTP request, then matches in routes and returns index
-    char *buff = malloc(5000);
+    char *buff = malloc(5001);
+    int v;
+    for (v = 0; v < 5001; ++v) buff[v] = 0;
     read(target, buff, 5000);
+    // printf("%s\n", buff);
+    const char *second = strdup(buff);
     int found = 0;
     int type = 0;
     char *split;
-    printf("%s\n", buff);
     do
     {
         split = strtok(buff, "\r\n");
@@ -158,7 +160,9 @@ int parse_route(int target, binding routes[], int routes_len)
                 break;
             }
         }
-    } while (!found && split != NULL);
+    }
+    while (!found && split != NULL);
+    printf("%s\n", buff);
     char *path = malloc(100);
     strtok(split, " ");
     path = strtok(NULL, " ");
@@ -168,12 +172,79 @@ int parse_route(int target, binding routes[], int routes_len)
     {
         if ((route = routes[index]).indicator == type && strncmp(route.path, path, sizeof route.path) == 0)
         {
-            if (route.indicator) return route.post(target, "");
+            if (route.indicator)
+            {
+                parse_post(target, second, route.post);
+            }
             else return route.get(target);
             break;
         }
     }
     return http404(target);
+}
+
+int parse_post(int fd, char *httpstring, int (*target) (int, mapitem[]))
+{
+    char *split;
+    char *item;
+    split = malloc(5001);
+    int I;
+    for (I = 0; I < 5001; ++I)
+    {
+        split[I] = 0;
+    }
+    item = malloc(5000);
+    printf("RECEIVED:\n%s\nEND RECEIVED\n", httpstring);
+    strtok(httpstring, "\r\n\r\n");
+    int i;
+    for (i = 0; i < 12; ++i) strtok(NULL, "\r\n\r\n"); // Yep, it's a terrible solution, but strtok is being weird.
+    split = strtok(NULL, "\r\n\r\n");
+    split[5000] = 0;
+    int n = char_count(split, '&') + 1;
+    mapitem values[n];
+    char *items[n];
+    items[0] = strtok(split, "&");
+    i = 1;
+    while ((item = strtok(NULL, "&")) && i < n)
+    {
+        items[i] = item;
+        ++i;
+    }
+    for (i = 0; i < n; ++i)
+    {
+        mapitem result;
+        result.key = strtok(items[i], "=");
+        result.value = strtok(NULL, "=");
+        values[i] = result;
+    }
+    target(fd, values);
+}
+
+int is_in(char *str, char seek)
+{
+    int found;
+    found = 0;
+    int i;
+    for (i = 0; i < strlen(str); ++i)
+    {
+        if (str[i] == seek)
+        {
+            found = 1;
+            break;
+        }
+    }
+    return found;
+}
+
+int char_count(char *str, char seek)
+{
+    int result = 0;
+    int i;
+    for (i = 0; i < strlen(str); ++i)
+    {
+        if (str[i] == seek) ++result;
+    }
+    return result;
 }
 
 int http_html_response_f(int caddr, char *filename)
@@ -205,7 +276,7 @@ binding get_binding(char *path, int (*target) (int))
     return result;
 }
 
-binding post_binding(char *path, int (*target) (int, char*))
+binding post_binding(char *path, int (*target) (int, mapitem[]))
 {
     binding result;
     result.path = path;
